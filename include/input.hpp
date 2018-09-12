@@ -10,5 +10,7 @@ namespace Input {
 void init_keysyms(xcb_connection_t *c);
 
 xcb_keysym_t lookup_keysym(xcb_keycode_t keycode, uint16_t modifiers);
+
+void finalize();
 } // namespace Input
 } // namespace darkhouse

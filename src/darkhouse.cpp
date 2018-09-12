@@ -4,9 +4,9 @@
 #include <xcb/xcb.h>
 
 #include "darkhouse.hpp"
+#include "input.hpp"
 #include "util.hpp"
 #include "window.hpp"
-#include "input.hpp"
 
 using namespace darkhouse;
 
@@ -72,7 +72,7 @@ void Darkhouse::run() {
         case XCB_KEY_PRESS: {
             auto evt = (xcb_key_press_event_t *)e;
             printf("Key pressed: %d\n", evt->detail);
-            Input::lookup_keysym(evt->detail, evt->state);
+            xcb_keysym_t keysym = Input::lookup_keysym(evt->detail, evt->state);
             break;
         }
         case XCB_KEY_RELEASE: {

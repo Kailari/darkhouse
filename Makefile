@@ -13,7 +13,7 @@ SOURCES += input.cpp
 
 CC=g++
 INCLUDES=-Iinclude/
-LIB=-lxcb
+LIB=-lxcb -lX11
 OBJECTS=$(addprefix $(OBJECTS_DIR)/, $(SOURCES:.cpp=.o))
 CFLAGS=-c -std=c++14 -Wall $(INCLUDES)
 LDFLAGS=$(LIB)
