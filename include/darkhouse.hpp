@@ -1,16 +1,18 @@
 #pragma once
 
-#include <xcb/xcb.h>
+#include <X11/Xlib.h>
 
 #include "config.hpp"
+#include "window.hpp"
 
 namespace darkhouse {
 class Darkhouse {
   private:
-    xcb_connection_t *m_connection;
-    xcb_screen_t *m_screen;
+    Display *m_xlib_display;
+    class xcb_connection_t *m_connection;
+    class xcb_screen_t *m_screen;
 
-    class Window* m_window;
+    Window *m_window;
 
   public:
     Darkhouse(Config config);

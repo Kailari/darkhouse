@@ -1,3 +1,4 @@
+#include <X11/Xlib.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -72,7 +73,16 @@ void Darkhouse::run() {
         case XCB_KEY_PRESS: {
             auto evt = (xcb_key_press_event_t *)e;
             printf("Key pressed: %d\n", evt->detail);
-            xcb_keysym_t keysym = Input::lookup_keysym(evt->detail, evt->state);
+
+            Input::Modifiers modifiers(evt->state);
+
+            printf(
+                "s: %d, l: %d, c: %d, m1: %d, m2: %d, m3: %d, m4: %d, m5: %d\n",
+                modifiers.shift, modifiers.lock, modifiers.control,
+                modifiers.mod1, modifiers.mod2, modifiers.mod3, modifiers.mod4,
+                modifiers.mod5);
+
+            xcb_keysym_t keysym = Input::handle_input(evt->detail, modifiers);
             break;
         }
         case XCB_KEY_RELEASE: {
