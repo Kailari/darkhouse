@@ -45,7 +45,8 @@ Input::Modifiers::Modifiers(uint8_t modifiers) {
     mod4 = (modifiers & XCB_MOD_MASK_4) != 0;
     mod5 = (modifiers & XCB_MOD_MASK_5) != 0;
 
-    // TODO: Figure out where mode-switch maps to by default, now its guessed to mod1
+    // TODO: Figure out where mode-switch maps to by default, now its guessed to
+    // mod1
 }
 
 void Input::init_keysyms(xcb_connection_t *c) {
@@ -69,7 +70,6 @@ xcb_keysym_t Input::handle_input(xcb_keycode_t keycode,
 
     xcb_keysym_t *keysyms = xcb_get_keyboard_mapping_keysyms(reply);
     xcb_keycode_t min_keycode = xcb_get_setup(c)->min_keycode;
-    xcb_keycode_t max_keycode = xcb_get_setup(c)->max_keycode;
 
     uint8_t keysyms_per_keycode = reply->keysyms_per_keycode;
     keysyms = &keysyms[(keycode - min_keycode) * keysyms_per_keycode];
@@ -139,19 +139,39 @@ xcb_keysym_t Input::handle_input(xcb_keycode_t keycode,
     // mod5                         => 7. sym => keysyms[6]
 
     int index = 0;
-    if (modifiers.mode_switch) index += 2;
-    if (modifiers.mod5) index += 4;
-    if (modifiers.shift || modifiers.lock) index += 1;
+    if (modifiers.mode_switch)
+        index += 2;
+    if (modifiers.mod5)
+        index += 4;
+    if (modifiers.shift || modifiers.lock)
+        index += 1;
 
-    // Just-in-case don't limit to hardcoded 6, but use per instead
-    if (index > keysyms_per_keycode) index = keysyms_per_keycode;
+    // Just-in-case, don't limit to hardcoded 6, but use per instead
+    if (index > keysyms_per_keycode)
+        index = keysyms_per_keycode;
 
+    while (keysyms[index] == XCB_NO_SYMBOL) {
+        index--;
+
+        if (index < 0) {
+            return XCB_NO_SYMBOL;
+        }
+    }
+
+#ifdef DEBUG_INPUT
+    printf("keycode: %d\n", keycode);
     for (int i = 0; i < 7; i++) {
         printf("  %d: %d/%s", i, keysyms[i], XKeysymToString(keysyms[i]));
     }
     putchar('\n');
     printf("  i: %d, raw: %d\n", index, keysyms[index]);
     printf("  resolved string: %s\n", XKeysymToString(keysyms[index]));
+
+    printf("  Modifiers:\n    s: %d, l: %d, c: %d, m1: %d, m2: %d, m3: %d, m4: "
+           "%d, m5: %d\n",
+           modifiers.shift, modifiers.lock, modifiers.control, modifiers.mod1,
+           modifiers.mod2, modifiers.mod3, modifiers.mod4, modifiers.mod5);
+#endif
 
     return keysyms[index];
 }

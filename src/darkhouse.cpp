@@ -4,6 +4,8 @@
 #include <unistd.h>
 #include <xcb/xcb.h>
 
+#include <X11/keysym.h>
+
 #include "darkhouse.hpp"
 #include "input.hpp"
 #include "util.hpp"
@@ -11,7 +13,7 @@
 
 using namespace darkhouse;
 
-Darkhouse::Darkhouse(Config config) {
+Darkhouse::Darkhouse(Config config) : m_config(config) {
     // Establish connection
     int preferred_screen = 0;
     m_connection = xcb_connect(nullptr, &preferred_screen);
@@ -48,16 +50,19 @@ Darkhouse::Darkhouse(Config config) {
 }
 
 Darkhouse::~Darkhouse() {
-    xcb_disconnect(m_connection);
-    delete m_window;
-    m_connection = nullptr;
-    m_screen = nullptr;
-    m_window = nullptr;
+    if (m_connection) {
+        xcb_disconnect(m_connection);
+        delete m_window;
+        m_connection = nullptr;
+        m_screen = nullptr;
+        m_window = nullptr;
+    }
 }
 
 void Darkhouse::run() {
     xcb_generic_event_t *e;
-    while ((e = xcb_wait_for_event(m_connection))) {
+    m_should_exit = false;
+    while (!m_should_exit && (e = xcb_wait_for_event(m_connection))) {
 
         switch (e->response_type & ~0x00) {
         case XCB_EXPOSE: {
@@ -72,27 +77,25 @@ void Darkhouse::run() {
         }
         case XCB_KEY_PRESS: {
             auto evt = (xcb_key_press_event_t *)e;
-            printf("Key pressed: %d\n", evt->detail);
-
             Input::Modifiers modifiers(evt->state);
 
-            printf(
-                "s: %d, l: %d, c: %d, m1: %d, m2: %d, m3: %d, m4: %d, m5: %d\n",
-                modifiers.shift, modifiers.lock, modifiers.control,
-                modifiers.mod1, modifiers.mod2, modifiers.mod3, modifiers.mod4,
-                modifiers.mod5);
-
             xcb_keysym_t keysym = Input::handle_input(evt->detail, modifiers);
+            process_input(keysym);
             break;
         }
         case XCB_KEY_RELEASE: {
-            auto evt = (xcb_key_release_event_t *)e;
-            printf("Key released: %d\n", evt->detail);
+            //auto evt = (xcb_key_release_event_t *)e;
             break;
         }
         default:
             break;
         }
         free(e);
+    }
+}
+
+void Darkhouse::process_input(xcb_keysym_t keysym) {
+    if (keysym == m_config.key_exit) {
+        m_should_exit = true;
     }
 }
