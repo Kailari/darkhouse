@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cairo/cairo.h>
 #include <xcb/xcb.h>
 
 #include "config.hpp"
@@ -15,15 +16,19 @@
 
 namespace darkhouse {
 /**
- * Manages the xserver connection. Creates a dock-type window with
- * CW_OVERRIDE_REDIRECT -flag, (hopefully) telling the WM to not to tamper with
- * our window.
+ * Manages the xserver connection and contains cairo surface/context. Creates
+ * a dock-type window with CW_OVERRIDE_REDIRECT -flag set, (hopefully) telling
+ * the WM to ignore our window. This should result in an alwaus-on-top window
+ * without decorations
  */
 class Window {
   private:
     // General window/connection stuff
     xcb_window_t m_window;
-    xcb_gcontext_t m_foreground;
+
+    // Cairo
+    cairo_surface_t *m_cairo_surface;
+    cairo_t *m_cairo_context;
 
   public:
     const uint16_t w;
@@ -31,10 +36,13 @@ class Window {
     const uint16_t x;
     const uint16_t y;
 
-    inline xcb_window_t get_window() { return m_window; }
-    inline xcb_gcontext_t get_foreground() { return m_foreground; }
+    xcb_window_t get_window();
+    cairo_surface_t *get_surface();
+    cairo_t *get_context();
 
     Window(xcb_connection_t *c, xcb_screen_t *screen, Config &config);
     ~Window();
+
+    void demand_focus(xcb_connection_t *c);
 };
 } // namespace darkhouse

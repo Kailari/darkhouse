@@ -51,11 +51,11 @@ Darkhouse::Darkhouse(Config config) : m_config(config) {
 
 Darkhouse::~Darkhouse() {
     if (m_connection) {
+        m_screen = nullptr;
         xcb_disconnect(m_connection);
         delete m_window;
-        m_connection = nullptr;
-        m_screen = nullptr;
         m_window = nullptr;
+        m_connection = nullptr;
     }
 }
 
@@ -66,12 +66,7 @@ void Darkhouse::run() {
 
         switch (e->response_type & ~0x00) {
         case XCB_EXPOSE: {
-            auto focus_cookie =
-                xcb_set_input_focus(m_connection, XCB_INPUT_FOCUS_POINTER_ROOT,
-                                    m_window->get_window(), XCB_CURRENT_TIME);
-            check_cookie(focus_cookie, m_connection,
-                         "Unable to force input focus.");
-
+            m_window->demand_focus(m_connection);
             xcb_flush(m_connection);
             break;
         }
@@ -84,7 +79,12 @@ void Darkhouse::run() {
             break;
         }
         case XCB_KEY_RELEASE: {
-            //auto evt = (xcb_key_release_event_t *)e;
+            // auto evt = (xcb_key_release_event_t *)e;
+            break;
+        }
+        case XCB_BUTTON_PRESS: {
+            // auto evt = (xcb_key_release_event_t *)e;
+            m_window->demand_focus(m_connection);
             break;
         }
         default:

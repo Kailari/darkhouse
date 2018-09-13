@@ -1,3 +1,5 @@
+#include <cairo/cairo-xcb.h>
+#include <cairo/cairo.h>
 #include <stdlib.h>
 #include <string.h>
 #include <xcb/shm.h>
@@ -14,24 +16,17 @@ Window::Window(xcb_connection_t *c, xcb_screen_t *screen, Config &config)
       x(screen->width_in_pixels / 2 - w / 2 + config.window_offset_x),
       y(screen->height_in_pixels / 2 - h / 2 + config.window_offset_y) {
 
-    // Create foreground context
-    m_foreground = xcb_generate_id(c);
-    uint32_t mask = XCB_GC_FOREGROUND | XCB_GC_GRAPHICS_EXPOSURES;
-    uint32_t context_values[2];
-    context_values[0] = screen->black_pixel;
-    context_values[1] = 0;
-    xcb_create_gc(c, m_foreground, screen->root, mask, context_values);
-
     // Generate window ID
     m_window = xcb_generate_id(c);
 
     // Create the window
-    mask = XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK;
+    uint32_t mask =
+        XCB_CW_BACK_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_EVENT_MASK;
     uint32_t win_values[3];
     win_values[0] = screen->white_pixel;
     win_values[1] = 1;
-    win_values[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_KEY_PRESS |
-                    XCB_EVENT_MASK_KEY_RELEASE;
+    win_values[2] = XCB_EVENT_MASK_EXPOSURE | XCB_EVENT_MASK_BUTTON_PRESS |
+                    XCB_EVENT_MASK_KEY_PRESS | XCB_EVENT_MASK_KEY_RELEASE;
 
     xcb_void_cookie_t window_cookie =
         xcb_create_window(c,                             // connection
@@ -75,10 +70,69 @@ Window::Window(xcb_connection_t *c, xcb_screen_t *screen, Config &config)
         }
     }
 
+    // Find correct visual
+    xcb_visualtype_t *visual = nullptr;
+    auto depth_iter = xcb_screen_allowed_depths_iterator(screen);
+    for (; depth_iter.rem; xcb_depth_next(&depth_iter)) {
+        auto visual_iter = xcb_depth_visuals_iterator(depth_iter.data);
+        for (; visual_iter.rem; xcb_visualtype_next(&visual_iter)) {
+            if (screen->root_visual == visual_iter.data->visual_id) {
+                visual = visual_iter.data;
+                break;
+            }
+        }
+    }
+    if (!visual) {
+        fprintf(stderr, "Could not determine visual");
+        exit(EXIT_FAILURE);
+    }
+
+    // Create cairo surface
+    m_cairo_surface = cairo_xcb_surface_create(c, m_window, visual, w, h);
+    if (!m_cairo_surface) {
+        fprintf(stderr, "Could not create cairo surface");
+        exit(EXIT_FAILURE);
+    }
+
+    m_cairo_context = cairo_create(m_cairo_surface);
+    if (!m_cairo_context) {
+        fprintf(stderr, "Could not create cairo context");
+        exit(EXIT_FAILURE);
+    }
+
+    xcb_map_window(c, m_window);
+
     // Demand focus
+    demand_focus(c);
+
+    xcb_flush(c);
+}
+
+Window::~Window() {
+    if (m_cairo_surface) {
+        cairo_surface_destroy(m_cairo_surface);
+        m_cairo_surface = nullptr;
+    }
+
+    if (m_cairo_context) {
+        cairo_destroy(m_cairo_context);
+        m_cairo_context = nullptr;
+    }
+}
+
+xcb_window_t Window::get_window() { return m_window; }
+
+cairo_surface_t *Window::get_surface() { return m_cairo_surface; }
+
+cairo_t *Window::get_context() { return m_cairo_context; }
+
+void Window::demand_focus(xcb_connection_t *c) {
+    // Demand attention
     xcb_atom_t state_atom, attention_state_atom;
-    atom_cookie = xcb_intern_atom(c, 0, WM_STATE_PROP_LEN, WM_STATE_PROP);
-    atom_reply = xcb_intern_atom_reply(c, atom_cookie, NULL);
+    xcb_intern_atom_cookie_t atom_cookie =
+        xcb_intern_atom(c, 0, WM_STATE_PROP_LEN, WM_STATE_PROP);
+    xcb_intern_atom_reply_t *atom_reply =
+        xcb_intern_atom_reply(c, atom_cookie, NULL);
     if (!atom_reply) {
         fprintf(stderr, "Unable to demand focus.\n");
     } else {
@@ -98,8 +152,8 @@ Window::Window(xcb_connection_t *c, xcb_screen_t *screen, Config &config)
         }
     }
 
-    xcb_map_window(c, m_window);
-    xcb_flush(c);
+    // Demand input focus
+    auto focus_cookie = xcb_set_input_focus(c, XCB_INPUT_FOCUS_POINTER_ROOT,
+                                            m_window, XCB_CURRENT_TIME);
+    check_cookie(focus_cookie, c, "Unable to force input focus.");
 }
-
-Window::~Window() {}
