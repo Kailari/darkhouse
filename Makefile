@@ -1,24 +1,33 @@
-OBJECTS_DIR=build/obj
-SOURCES_DIR=src
-EXE_DIR=build/out
+SOURCES_DIR := src
+INCLUDE_DIR := include
+OBJECTS_DIR := build/obj
+BIN_DIR := build/out
 
-EXECUTABLE=darkhouse
+SOURCE_FILES := main.cpp
+SOURCE_FILES += darkhouse.cpp
+SOURCE_FILES += window.cpp
+SOURCE_FILES += config.cpp
+SOURCE_FILES += input.cpp
 
-SOURCES = main.cpp
-SOURCES += darkhouse.cpp
-SOURCES += window.cpp
-SOURCES += config.cpp
-SOURCES += input.cpp
+LIBS := xcb X11 cairo
+EXECUTABLE := darkhouse
 
+COMPILE_FLAGS = -std=c++11 -Wall
+LINKER_FLAGS = 
+CC := g++
 
-CC=g++
-INCLUDES=-Iinclude/
-LIB=-lxcb -lX11
-OBJECTS=$(addprefix $(OBJECTS_DIR)/, $(SOURCES:.cpp=.o))
-CFLAGS=-c -std=c++14 -Wall $(INCLUDES)
-LDFLAGS=$(LIB)
+####################################################################################
 
-$(OBJECTS_DIR)%.o : $(SOURCES_DIR)%.cpp
+OBJECTS := $(addprefix $(OBJECTS_DIR)/, $(SOURCE_FILES:.cpp=.o))
+SOURCES := $(addprefix $(SOURCES_DIR)/, $(SOURCE_FILES))
+
+CFLAGS := -c -I$(INCLUDE_DIR)/
+LDFLAGS := $(addprefix -l, $(LIBS))
+
+INCLUDE_FILES := $(shell find $(INCLUDE_DIR)/ -type f -name '*.hpp')
+DEPENDENCIES := $(INCLUDE_FILES)
+
+$(OBJECTS_DIR)%.o : $(SOURCES_DIR)%.cpp $(DEPENDENCIES)
 	$(CC) $(CFLAGS) $< -o $@
 
 all: $(OBJECTS) $(EXECUTABLE)
@@ -28,17 +37,17 @@ $(OBJECTS) : | $(OBJECTS_DIR)
 $(OBJECTS_DIR):
 	mkdir -p $(OBJECTS_DIR)
 
-$(EXECUTABLE) : $(OBJECTS) | $(EXE_DIR)
-	$(CC) $^ -o $(EXE_DIR)/$@ $(LDFLAGS)
+$(EXECUTABLE) : $(OBJECTS) | $(BIN_DIR)
+	$(CC) $^ -o $(BIN_DIR)/$@ $(LDFLAGS)
 
-$(EXE_DIR):
-	mkdir -p $(EXE_DIR)
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
 
 
 .PHONY: clean
 
 clean:
-	rm -f $(OBJECTS_DIR)/*.o $(EXE_DIR)/*
+	rm -f $(OBJECTS_DIR)/*.o $(BIN_DIR)/*
 
 run: all
-	./$(EXE_DIR)/$(EXECUTABLE)
+	./$(BIN_DIR)/$(EXECUTABLE)
